@@ -1,0 +1,8 @@
+{
+  "name": "building-structure-projection",
+  "version": "1.0.0",
+  "description": "Interactive 3D visualization system for building structure projection",
+  "dependencies": {
+    "three": "^0.181.2"
+  }
+}
