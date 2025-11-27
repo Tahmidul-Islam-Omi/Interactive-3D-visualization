@@ -51,8 +51,8 @@ export class BuildingViewer {
       1000                   // Far clipping plane
     );
     
-    // Position camera to view the building
-    this.camera.position.set(50, 30, 50);
+    // Initial camera position (will be adjusted after building loads)
+    this.camera.position.set(0, 0, 50);
     this.camera.lookAt(0, 0, 0);
   }
 
@@ -102,13 +102,33 @@ export class BuildingViewer {
   createControls() {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     
-    // Configure controls
-    this.controls.enableDamping = true;      // Smooth camera movement
-    this.controls.dampingFactor = 0.05;      // Damping inertia
-    this.controls.screenSpacePanning = false; // Pan in world space
-    this.controls.minDistance = 10;          // Minimum zoom distance
-    this.controls.maxDistance = 500;         // Maximum zoom distance
-    this.controls.maxPolarAngle = Math.PI / 2; // Prevent camera going below ground
+    // Configure controls for maximum flexibility
+    this.controls.enableDamping = true;       // Smooth camera movement
+    this.controls.dampingFactor = 0.08;       // Slightly more responsive
+    this.controls.screenSpacePanning = true;  // Pan in screen space (more intuitive)
+    this.controls.minDistance = 5;            // Closer zoom
+    this.controls.maxDistance = 1000;         // Farther zoom
+    this.controls.maxPolarAngle = Math.PI;    // Full 180° vertical rotation
+    this.controls.minPolarAngle = 0;          // Can look straight down
+    
+    // Enable all rotation axes
+    this.controls.enableRotate = true;
+    this.controls.rotateSpeed = 1.0;
+    
+    // Enable panning
+    this.controls.enablePan = true;
+    this.controls.panSpeed = 1.0;
+    
+    // Enable zooming
+    this.controls.enableZoom = true;
+    this.controls.zoomSpeed = 1.2;
+    
+    // Mouse button assignments
+    this.controls.mouseButtons = {
+      LEFT: THREE.MOUSE.ROTATE,
+      MIDDLE: THREE.MOUSE.DOLLY,
+      RIGHT: THREE.MOUSE.PAN
+    };
   }
 
   /**
@@ -283,6 +303,69 @@ export class BuildingViewer {
   }
 
   /**
+   * Calculate bounding box of all surfaces
+   * @param {Array<Object>} surfaces - Array of surface objects
+   * @returns {{center: {x, y, z}, size: {x, y, z}}} Bounding box info
+   */
+  calculateBoundingBox(surfaces) {
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+
+    surfaces.forEach(surface => {
+      surface.vertices.forEach(vertex => {
+        minX = Math.min(minX, vertex.x);
+        minY = Math.min(minY, vertex.y);
+        minZ = Math.min(minZ, vertex.z);
+        maxX = Math.max(maxX, vertex.x);
+        maxY = Math.max(maxY, vertex.y);
+        maxZ = Math.max(maxZ, vertex.z);
+      });
+    });
+
+    const center = {
+      x: (minX + maxX) / 2,
+      y: (minY + maxY) / 2,
+      z: (minZ + maxZ) / 2
+    };
+
+    const size = {
+      x: maxX - minX,
+      y: maxY - minY,
+      z: maxZ - minZ
+    };
+
+    return { center, size };
+  }
+
+  /**
+   * Position camera to view the building from front
+   * @param {Array<Object>} surfaces - Array of surface objects
+   */
+  positionCameraForBuilding(surfaces) {
+    const { center, size } = this.calculateBoundingBox(surfaces);
+    
+    // Calculate distance based on building size
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const distance = maxDim * 2.5;
+
+    // Position camera in front of building (along Z axis)
+    this.camera.position.set(
+      center.x,
+      center.y,
+      center.z + distance
+    );
+    
+    this.camera.lookAt(center.x, center.y, center.z);
+    
+    // Update controls target
+    this.controls.target.set(center.x, center.y, center.z);
+    this.controls.update();
+
+    console.log('Camera positioned at:', this.camera.position);
+    console.log('Looking at building center:', center);
+  }
+
+  /**
    * Render all surfaces from building data
    * @param {Array<Object>} surfaces - Array of surface objects
    */
@@ -295,6 +378,9 @@ export class BuildingViewer {
         console.warn(`Failed to render surface ${surface.id}:`, error.message);
       }
     });
+
+    // Auto-position camera after rendering
+    this.positionCameraForBuilding(surfaces);
   }
 
   /**
