@@ -724,6 +724,26 @@ export class BuildingViewer {
   }
 
   /**
+   * Reset view to initial state
+   * Shows all surfaces, unhighlights all, and repositions camera
+   * @param {Array<Object>} allSurfaces - Original building surfaces for camera positioning
+   */
+  resetView(allSurfaces) {
+    // Show all surfaces
+    this.showAllSurfaces();
+    
+    // Unhighlight all surfaces
+    this.unhighlightAll();
+    
+    // Reposition camera to show entire building
+    if (allSurfaces && allSurfaces.length > 0) {
+      this.positionCameraForBuilding(allSurfaces);
+    }
+    
+    console.log('View reset: all surfaces visible, highlights cleared, camera repositioned');
+  }
+
+  /**
    * Clear all surfaces from the scene
    */
   clearSurfaces() {

@@ -90,20 +90,14 @@ class BuildingVisualizationApp {
 
     // Reset handler
     this.uiController.onReset(() => {
-      console.log('Reset view');
+      console.log('Reset button clicked');
       
-      // Reset UI selections
+      // Reset UI selections (dropdowns)
       this.uiController.resetSelections();
       
-      // Unhighlight all surfaces
-      this.viewer.unhighlightAll();
-      
-      // Show all surfaces (clear space filter)
-      this.viewer.showAllSurfaces();
-      
-      // Reposition camera to show entire building
+      // Reset viewer to initial state
       if (this.buildingData && this.buildingData.surfaces) {
-        this.viewer.positionCameraForBuilding(this.buildingData.surfaces);
+        this.viewer.resetView(this.buildingData.surfaces);
       }
     });
   }
