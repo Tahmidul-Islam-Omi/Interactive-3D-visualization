@@ -63,21 +63,32 @@ class BuildingVisualizationApp {
   setupUIHandlers() {
     // Surface selection handler
     this.uiController.onSurfaceSelect((surfaceId) => {
-      console.log('Surface selected:', surfaceId);
-      // TODO: Implement highlighting in Phase 2
+      console.log('Surface selected from dropdown:', surfaceId);
+      
+      if (surfaceId) {
+        // Highlight the selected surface
+        this.viewer.selectSurface(surfaceId);
+      } else {
+        // Empty selection - unhighlight all
+        this.viewer.unhighlightAll();
+      }
     });
 
     // Space selection handler
     this.uiController.onSpaceSelect((spaceId) => {
       console.log('Space selected:', spaceId);
-      // TODO: Implement filtering in Phase 3
+      // TODO: Implement filtering in Phase 4
     });
 
     // Reset handler
     this.uiController.onReset(() => {
       console.log('Reset view');
+      
+      // Reset UI selections
       this.uiController.resetSelections();
-      // TODO: Implement reset functionality in Phase 3
+      
+      // Unhighlight all surfaces
+      this.viewer.unhighlightAll();
     });
   }
 

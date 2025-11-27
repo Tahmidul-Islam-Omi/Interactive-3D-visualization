@@ -14,6 +14,15 @@ export class BuildingViewer {
     this.controls = null;
     this.animationId = null;
     
+    // Raycasting for click detection
+    this.raycaster = new THREE.Raycaster();
+    this.mouse = new THREE.Vector2();
+    
+    // Surface management
+    this.surfaceMeshes = new Map(); // surfaceId -> mesh group
+    this.originalColors = new Map(); // surfaceId -> original color
+    this.highlightedSurfaces = new Set(); // Set of highlighted surface IDs
+    
     this.init();
   }
 
@@ -27,6 +36,7 @@ export class BuildingViewer {
     this.createLights();
     this.createControls();
     this.setupWindowResize();
+    this.setupRaycasting();
   }
 
   /**
@@ -146,6 +156,76 @@ export class BuildingViewer {
       // Update renderer size
       this.renderer.setSize(width, height);
     });
+  }
+
+  /**
+   * Set up raycasting for click detection
+   */
+  setupRaycasting() {
+    this.renderer.domElement.addEventListener('click', (event) => {
+      this.onCanvasClick(event);
+    });
+  }
+
+  /**
+   * Handle canvas click events
+   * @param {MouseEvent} event - Mouse click event
+   */
+  onCanvasClick(event) {
+    // Calculate mouse position in normalized device coordinates (-1 to +1)
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    // Cast ray from camera through mouse position
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+
+    // Find intersected objects
+    const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+
+    if (intersects.length > 0) {
+      // Get the first intersected mesh
+      const intersectedObject = intersects[0].object;
+      
+      // Find the surface ID from userData
+      const surfaceId = this.getSurfaceIdFromObject(intersectedObject);
+      
+      if (surfaceId) {
+        console.log('Clicked surface:', surfaceId);
+        this.toggleSurfaceHighlight(surfaceId);
+      }
+    }
+  }
+
+  /**
+   * Get surface ID from an intersected object
+   * @param {THREE.Object3D} object - Intersected object
+   * @returns {string|null} Surface ID or null
+   */
+  getSurfaceIdFromObject(object) {
+    // Check if object has surfaceId in userData
+    if (object.userData && object.userData.surfaceId) {
+      return object.userData.surfaceId;
+    }
+    
+    // Check parent (mesh might be inside a group)
+    if (object.parent && object.parent.userData && object.parent.userData.surfaceId) {
+      return object.parent.userData.surfaceId;
+    }
+    
+    return null;
+  }
+
+  /**
+   * Toggle surface highlight (highlight if not highlighted, unhighlight if highlighted)
+   * @param {string} surfaceId - Surface ID to toggle
+   */
+  toggleSurfaceHighlight(surfaceId) {
+    if (this.highlightedSurfaces.has(surfaceId)) {
+      this.unhighlightSurface(surfaceId);
+    } else {
+      this.highlightSurface(surfaceId);
+    }
   }
 
   /**
@@ -374,6 +454,15 @@ export class BuildingViewer {
       try {
         const surfaceMesh = this.createSurfaceMesh(surface);
         this.scene.add(surfaceMesh);
+        
+        // Store reference to mesh for later access
+        this.surfaceMeshes.set(surface.id, surfaceMesh);
+        
+        // Store original color
+        const mesh = surfaceMesh.children[0]; // First child is the mesh
+        if (mesh && mesh.material) {
+          this.originalColors.set(surface.id, mesh.material.color.getHex());
+        }
       } catch (error) {
         console.warn(`Failed to render surface ${surface.id}:`, error.message);
       }
@@ -381,6 +470,94 @@ export class BuildingViewer {
 
     // Auto-position camera after rendering
     this.positionCameraForBuilding(surfaces);
+  }
+
+  /**
+   * Highlight a surface by changing its color
+   * @param {string} surfaceId - Surface ID to highlight
+   */
+  highlightSurface(surfaceId) {
+    const meshGroup = this.surfaceMeshes.get(surfaceId);
+    if (!meshGroup) {
+      console.warn(`Surface ${surfaceId} not found`);
+      return;
+    }
+
+    // Get the mesh (first child of group)
+    const mesh = meshGroup.children[0];
+    if (mesh && mesh.material) {
+      // Change to highlight color (bright orange/yellow)
+      mesh.material.color.setHex(0xff9800); // Orange
+      mesh.material.emissive.setHex(0xff6600); // Add glow effect
+      mesh.material.emissiveIntensity = 0.3;
+      
+      // Make wireframe more visible
+      const wireframe = meshGroup.children[1];
+      if (wireframe && wireframe.material) {
+        wireframe.material.color.setHex(0xff0000); // Red wireframe
+        wireframe.material.linewidth = 2;
+      }
+      
+      this.highlightedSurfaces.add(surfaceId);
+      console.log(`Highlighted surface: ${surfaceId}`);
+    }
+  }
+
+  /**
+   * Unhighlight a surface by restoring its original color
+   * @param {string} surfaceId - Surface ID to unhighlight
+   */
+  unhighlightSurface(surfaceId) {
+    const meshGroup = this.surfaceMeshes.get(surfaceId);
+    const originalColor = this.originalColors.get(surfaceId);
+    
+    if (!meshGroup || originalColor === undefined) {
+      console.warn(`Surface ${surfaceId} not found or no original color stored`);
+      return;
+    }
+
+    // Get the mesh (first child of group)
+    const mesh = meshGroup.children[0];
+    if (mesh && mesh.material) {
+      // Restore original color
+      mesh.material.color.setHex(originalColor);
+      mesh.material.emissive.setHex(0x000000); // Remove glow
+      mesh.material.emissiveIntensity = 0;
+      
+      // Restore wireframe
+      const wireframe = meshGroup.children[1];
+      if (wireframe && wireframe.material) {
+        wireframe.material.color.setHex(0x000000); // Black wireframe
+        wireframe.material.linewidth = 1;
+      }
+      
+      this.highlightedSurfaces.delete(surfaceId);
+      console.log(`Unhighlighted surface: ${surfaceId}`);
+    }
+  }
+
+  /**
+   * Unhighlight all surfaces
+   */
+  unhighlightAll() {
+    const highlightedIds = Array.from(this.highlightedSurfaces);
+    highlightedIds.forEach(surfaceId => {
+      this.unhighlightSurface(surfaceId);
+    });
+  }
+
+  /**
+   * Highlight surface by ID (public method for external use)
+   * @param {string} surfaceId - Surface ID to highlight
+   */
+  selectSurface(surfaceId) {
+    // Unhighlight all first
+    this.unhighlightAll();
+    
+    // Highlight the selected one
+    if (surfaceId) {
+      this.highlightSurface(surfaceId);
+    }
   }
 
   /**
