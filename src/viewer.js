@@ -198,7 +198,7 @@ export class BuildingViewer {
       return [0, 1, 2, 0, 2, 3];
     }
     
-    // For more complex polygons, use fan triangulation
+    // For more complex polygons, fan triangulation is used
     // This works for convex polygons
     const indices = [];
     for (let i = 1; i < vertices.length - 1; i++) {

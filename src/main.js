@@ -1,6 +1,7 @@
 // Main application logic
 import { loadBuildingFromFile } from './utils.js';
 import { BuildingViewer } from './viewer.js';
+import { UIController } from './ui-controller.js';
 
 /**
  * Application class to manage the 3D building visualization
@@ -8,6 +9,7 @@ import { BuildingViewer } from './viewer.js';
 class BuildingVisualizationApp {
   constructor() {
     this.viewer = null;
+    this.uiController = null;
     this.buildingData = null;
     this.isInitialized = false;
   }
@@ -29,6 +31,16 @@ class BuildingVisualizationApp {
       this.viewer = new BuildingViewer(container);
       console.log('3D Viewer created successfully');
       
+      // Initialize UI controller
+      this.uiController = new UIController();
+      if (!this.uiController.init()) {
+        throw new Error('Failed to initialize UI controller');
+      }
+      console.log('UI Controller initialized successfully');
+      
+      // Set up UI event handlers
+      this.setupUIHandlers();
+      
       // Load and parse the building XML file
       await this.loadBuilding('/sample_input.xml');
       
@@ -43,6 +55,30 @@ class BuildingVisualizationApp {
       console.error('Failed to initialize application:', error);
       this.showError(error.message);
     }
+  }
+
+  /**
+   * Set up UI event handlers
+   */
+  setupUIHandlers() {
+    // Surface selection handler
+    this.uiController.onSurfaceSelect((surfaceId) => {
+      console.log('Surface selected:', surfaceId);
+      // TODO: Implement highlighting in Phase 2
+    });
+
+    // Space selection handler
+    this.uiController.onSpaceSelect((spaceId) => {
+      console.log('Space selected:', spaceId);
+      // TODO: Implement filtering in Phase 3
+    });
+
+    // Reset handler
+    this.uiController.onReset(() => {
+      console.log('Reset view');
+      this.uiController.resetSelections();
+      // TODO: Implement reset functionality in Phase 3
+    });
   }
 
   /**
@@ -64,10 +100,31 @@ class BuildingVisualizationApp {
       
       console.log('All surfaces rendered successfully');
       
+      // Populate UI dropdowns
+      this.populateUIControls();
+      
     } catch (error) {
       console.error('Failed to load building:', error);
       throw error;
     }
+  }
+
+  /**
+   * Populate UI controls with building data
+   */
+  populateUIControls() {
+    if (!this.uiController || !this.buildingData) {
+      return;
+    }
+
+    // Populate surface dropdown
+    this.uiController.populateSurfaceDropdown(this.buildingData.surfaces);
+
+    // Extract and populate space dropdown
+    const uniqueSpaces = this.uiController.extractUniqueSpaces(this.buildingData.surfaces);
+    this.uiController.populateSpaceDropdown(uniqueSpaces);
+
+    console.log('UI controls populated successfully');
   }
 
   /**
@@ -126,6 +183,10 @@ class BuildingVisualizationApp {
     if (this.viewer) {
       this.viewer.dispose();
       this.viewer = null;
+    }
+    if (this.uiController) {
+      this.uiController.resetSelections();
+      this.uiController = null;
     }
     this.buildingData = null;
     this.isInitialized = false;
