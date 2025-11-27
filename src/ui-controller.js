@@ -65,7 +65,7 @@ export class UIController {
    * @param {Array<Object>} surfaces - Array of surface objects
    */
   populateSurfaceDropdown(surfaces) {
-    // Clear existing options except the first one
+    
     this.surfaceSelect.innerHTML = '<option value="">-- Select a surface --</option>';
 
     surfaces.forEach(surface => {
@@ -87,7 +87,7 @@ export class UIController {
    * @param {Array<string>} spaceIds - Array of unique space IDs
    */
   populateSpaceDropdown(spaceIds) {
-    // Clear existing options except the first one
+    
     this.spaceSelect.innerHTML = '<option value="">-- Select a space --</option>';
 
     spaceIds.forEach(spaceId => {
