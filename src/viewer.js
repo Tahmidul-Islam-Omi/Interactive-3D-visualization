@@ -561,6 +561,169 @@ export class BuildingViewer {
   }
 
   /**
+   * Show a surface by making it visible
+   * @param {string} surfaceId - Surface ID to show
+   */
+  showSurface(surfaceId) {
+    const meshGroup = this.surfaceMeshes.get(surfaceId);
+    if (meshGroup) {
+      meshGroup.visible = true;
+    }
+  }
+
+  /**
+   * Hide a surface by making it invisible
+   * @param {string} surfaceId - Surface ID to hide
+   */
+  hideSurface(surfaceId) {
+    const meshGroup = this.surfaceMeshes.get(surfaceId);
+    if (meshGroup) {
+      meshGroup.visible = false;
+    }
+  }
+
+  /**
+   * Show all surfaces
+   */
+  showAllSurfaces() {
+    this.surfaceMeshes.forEach((meshGroup) => {
+      meshGroup.visible = true;
+    });
+  }
+
+  /**
+   * Hide all surfaces
+   */
+  hideAllSurfaces() {
+    this.surfaceMeshes.forEach((meshGroup) => {
+      meshGroup.visible = false;
+    });
+  }
+
+  /**
+   * Filter surfaces by space ID
+   * @param {string} spaceId - Space ID to filter by
+   */
+  filterBySpace(spaceId) {
+    if (!spaceId) {
+      // No space selected - show all surfaces
+      this.showAllSurfaces();
+      console.log('Showing all surfaces');
+      return;
+    }
+
+    let visibleCount = 0;
+    let hiddenCount = 0;
+    let surfacesWithoutSpace = 0;
+
+    // Loop through all surfaces
+    this.surfaceMeshes.forEach((meshGroup, surfaceId) => {
+      // Get the mesh to access userData
+      const mesh = meshGroup.children[0];
+      
+      if (mesh && mesh.userData) {
+        const adjacentSpaceId = mesh.userData.adjacentSpaceId;
+        
+        if (adjacentSpaceId === spaceId) {
+          // Surface belongs to selected space - show it
+          meshGroup.visible = true;
+          visibleCount++;
+        } else if (!adjacentSpaceId) {
+          // Surface has no space ID (e.g., Shade elements) - keep visible
+          meshGroup.visible = true;
+          visibleCount++;
+          surfacesWithoutSpace++;
+        } else {
+          // Surface belongs to different space - hide it
+          meshGroup.visible = false;
+          hiddenCount++;
+        }
+      }
+    });
+
+    console.log(`Filtered by space ${spaceId}: ${visibleCount} visible, ${hiddenCount} hidden`);
+    if (surfacesWithoutSpace > 0) {
+      console.log(`${surfacesWithoutSpace} surfaces without space ID kept visible`);
+    }
+
+    // Only refocus camera if surfaces were actually hidden
+    // This prevents unnecessary camera movement in single-space buildings
+    if (hiddenCount > 0) {
+      this.refocusCameraOnVisibleSurfaces();
+      console.log('Camera refocused on visible surfaces');
+    } else {
+      console.log('No surfaces hidden - camera position unchanged');
+    }
+  }
+
+  /**
+   * Refocus camera on currently visible surfaces
+   */
+  refocusCameraOnVisibleSurfaces() {
+    // Collect visible surfaces
+    const visibleSurfaces = [];
+    
+    this.surfaceMeshes.forEach((meshGroup, surfaceId) => {
+      if (meshGroup.visible) {
+        const mesh = meshGroup.children[0];
+        if (mesh && mesh.userData) {
+          // Reconstruct surface data for bounding box calculation
+          const geometry = mesh.geometry;
+          const positions = geometry.attributes.position.array;
+          const vertices = [];
+          
+          for (let i = 0; i < positions.length; i += 3) {
+            vertices.push({
+              x: positions[i],
+              y: positions[i + 1],
+              z: positions[i + 2]
+            });
+          }
+          
+          visibleSurfaces.push({ vertices });
+        }
+      }
+    });
+
+    // Reposition camera if there are visible surfaces
+    if (visibleSurfaces.length > 0) {
+      this.positionCameraForBuilding(visibleSurfaces);
+    }
+  }
+
+  /**
+   * Get list of visible surface IDs
+   * @returns {Array<string>} Array of visible surface IDs
+   */
+  getVisibleSurfaceIds() {
+    const visibleIds = [];
+    
+    this.surfaceMeshes.forEach((meshGroup, surfaceId) => {
+      if (meshGroup.visible) {
+        visibleIds.push(surfaceId);
+      }
+    });
+    
+    return visibleIds;
+  }
+
+  /**
+   * Get count of visible surfaces
+   * @returns {number} Number of visible surfaces
+   */
+  getVisibleSurfaceCount() {
+    let count = 0;
+    
+    this.surfaceMeshes.forEach((meshGroup) => {
+      if (meshGroup.visible) {
+        count++;
+      }
+    });
+    
+    return count;
+  }
+
+  /**
    * Clear all surfaces from the scene
    */
   clearSurfaces() {

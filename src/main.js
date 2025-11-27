@@ -76,8 +76,16 @@ class BuildingVisualizationApp {
 
     // Space selection handler
     this.uiController.onSpaceSelect((spaceId) => {
-      console.log('Space selected:', spaceId);
-      // TODO: Implement filtering in Phase 4
+      console.log('Space selected from dropdown:', spaceId);
+      
+      // Filter surfaces by space
+      this.viewer.filterBySpace(spaceId);
+      
+      // Unhighlight all when filtering (clean view)
+      this.viewer.unhighlightAll();
+      
+      // Clear surface dropdown selection
+      this.uiController.setSelectedSurface('');
     });
 
     // Reset handler
@@ -89,6 +97,14 @@ class BuildingVisualizationApp {
       
       // Unhighlight all surfaces
       this.viewer.unhighlightAll();
+      
+      // Show all surfaces (clear space filter)
+      this.viewer.showAllSurfaces();
+      
+      // Reposition camera to show entire building
+      if (this.buildingData && this.buildingData.surfaces) {
+        this.viewer.positionCameraForBuilding(this.buildingData.surfaces);
+      }
     });
   }
 
